@@ -350,8 +350,8 @@ class Generator {
       // construct url
       let path = method.path;
       for (const [name] of method.pathParams) {
-        path = path.replace(`{+${name}}`, `\${${name}}`);
-        path = path.replace(`{${name}}`, `\${${name}}`);
+        path = path.replace(`{+${name}}`, `\${ ${name} }`);
+        path = path.replace(`{${name}}`, `\${ ${name} }`);
       }
       this.#w.writeLine(`const url = new URL(\`\${this.#baseUrl}${path}\`);`);
       // add options as query params
