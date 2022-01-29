@@ -159,7 +159,7 @@ class Generator {
     this.#w.blankLine();
 
     const imports =
-      `import { Anonymous, ServiceAccount } from "/_/auth@v1/mod.ts";\nexport { Anonymous, ServiceAccount };`;
+      `import { Anonymous, Auth, ServiceAccount } from "/_/auth@v1/mod.ts";\nexport { Anonymous, ServiceAccount };`;
     this.#w.writeLine(imports);
     this.#w.blankLine();
   }
