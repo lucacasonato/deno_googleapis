@@ -1,23 +1,21 @@
 import { assert, CodeBlockWriter, dedent } from "./deps.ts";
 import {
-  Discovery,
-  DiscoveryMethod,
-  DiscoveryParameter,
-  DiscoveryResource,
-  DiscoverySchema,
-  Type,
-} from "./types.ts";
+  JsonSchema,
+  RestDescription,
+  RestMethod,
+  RestResource,
+} from "./discovery:v1.gen.ts";
 
-interface Method extends DiscoveryMethod {
+interface Method extends RestMethod {
   camelCaseName: string;
   pascalCaseName: string;
-  queryParams: [string, DiscoveryParameter][];
-  pathParams: [string, DiscoveryParameter][];
+  queryParams: [string, JsonSchema][];
+  pathParams: [string, JsonSchema][];
 }
 
 interface Param {
   name: string;
-  type: Type;
+  schema: JsonSchema;
   description?: string;
   default?: boolean;
 }
@@ -38,32 +36,53 @@ function pascalCase(parts: string[]): string {
   return parts.map((p) => p[0].toUpperCase() + p.slice(1)).join("");
 }
 
+export function primaryName(name: string, words: string[]) {
+  let index = 0;
+  while (index < name.length) {
+    const startIndex = index;
+    for (const word of words) {
+      if (name.toLowerCase().startsWith(word.toLowerCase(), index)) {
+        index += word.length;
+        name = name.slice(0, startIndex) + word + name.slice(index);
+        break;
+      }
+    }
+    if (index === startIndex) {
+      index++;
+    }
+  }
+  return name;
+}
+
 class Generator {
-  #schema: Discovery;
+  #schema: RestDescription;
   #w = new CodeBlockWriter({
     newLine: "\n",
     indentNumberOfSpaces: 2,
   });
   #methods: Method[];
   #name: string;
+  #selfUrl: string;
 
-  #visitResource(names: string[], resource: DiscoveryResource) {
+  #visitResource(names: string[], resource: RestResource) {
     if (resource.methods) {
       for (const [name, method] of Object.entries(resource.methods)) {
         const parts = [...names, name];
         const camelCaseName = camelCase(parts);
         const pascalCaseName = pascalCase(parts);
-        const queryParams: [string, DiscoveryParameter][] = [];
-        const pathParams: [string, DiscoveryParameter][] = [];
-        for (const [name, param] of Object.entries(method.parameters)) {
-          if (param.location === "query") {
-            queryParams.push([name, param]);
-          } else if (param.location === "path") {
-            pathParams.push([name, param]);
+        const queryParams: [string, JsonSchema][] = [];
+        const pathParams: [string, JsonSchema][] = [];
+        if (method.parameters) {
+          for (const [name, param] of Object.entries(method.parameters)) {
+            if (param.location === "query") {
+              queryParams.push([name, param]);
+            } else if (param.location === "path") {
+              pathParams.push([name, param]);
+            }
           }
+          queryParams.sort((a, b) => a[0].localeCompare(b[0]));
+          pathParams.sort((a, b) => a[0].localeCompare(b[0]));
         }
-        queryParams.sort((a, b) => a[0].localeCompare(b[0]));
-        pathParams.sort((a, b) => a[0].localeCompare(b[0]));
         this.#methods.push({
           ...method,
           camelCaseName,
@@ -80,16 +99,21 @@ class Generator {
     }
   }
 
-  constructor(schema: Discovery) {
+  constructor(schema: RestDescription, selfUrl: string) {
     this.#schema = schema;
     this.#methods = [];
-    for (const [name, resource] of Object.entries(this.#schema.resources)) {
-      this.#visitResource([name], resource);
+    if (this.#schema.resources) {
+      for (const [name, resource] of Object.entries(this.#schema.resources)) {
+        this.#visitResource([name], resource);
+      }
     }
     this.#methods.sort((a, b) =>
       a.camelCaseName.localeCompare(b.camelCaseName)
     );
-    this.#name = pascalCase([this.#schema.name]);
+    assert(this.#schema.name);
+    assert(this.#schema.title);
+    this.#name = primaryName(this.#schema.name, this.#schema.title.split(" "));
+    this.#selfUrl = selfUrl;
   }
 
   generate(): string {
@@ -99,10 +123,6 @@ class Generator {
     this.#writeTypes();
 
     return this.#w.toString();
-  }
-
-  get #selfUrl() {
-    return `https://googleapis.deno.dev/v1/${this.#schema.id}.ts`;
   }
 
   /** Escape a documentation string so it is safe to use in a multiline JS
@@ -149,7 +169,7 @@ class Generator {
      * ${title}
      * ${"=".repeat(title.length)}
      * 
-     * ${this.#escapeDocs(this.#schema.description)}
+     * ${this.#escapeDocs(this.#schema.description ?? "")}
      * 
      * Docs: ${this.#schema.documentationLink}
      * Source: ${this.#selfUrl}
@@ -164,23 +184,15 @@ class Generator {
     this.#w.blankLine();
   }
 
-  #type(t: Type) {
+  #type(t: JsonSchema) {
     switch (t.type) {
       case "any":
         this.#w.write("any");
         return;
       case "array": {
-        if (Array.isArray(t.items)) {
-          this.#w.write("[");
-          for (const item of t.items) {
-            this.#type(item);
-            this.#w.write(", ");
-          }
-          this.#w.write("]");
-        } else {
-          this.#type(t.items);
-          this.#w.write("[]");
-        }
+        assert(t.items);
+        this.#type(t.items);
+        this.#w.write("[]");
         return;
       }
       case "boolean":
@@ -213,7 +225,7 @@ class Generator {
               return;
             }
           }
-        } else if ("enum" in t) {
+        } else if (t.enum !== undefined) {
           for (const e of t.enum) {
             this.#w.write(` | "${e}"`);
           }
@@ -243,7 +255,7 @@ class Generator {
         return;
       }
       default:
-        if ("$ref" in t) {
+        if (t.$ref !== undefined) {
           this.#w.write(t.$ref);
         } else {
           this.#w.write("unknown /* TODO */");
@@ -252,7 +264,9 @@ class Generator {
   }
 
   #writePrimary() {
-    this.#writeDocComment(this.#schema.description);
+    if (this.#schema.description) {
+      this.#writeDocComment(this.#schema.description);
+    }
     this.#w.write("export class ");
     this.#w.write(this.#name);
     this.#w.block(() => {
@@ -262,8 +276,14 @@ class Generator {
       this.#w.blankLine();
 
       // write constructor
-      const baseUrl = new URL(this.#schema.basePath, this.#schema.rootUrl);
-      this.#w.write("constructor(auth: Auth = new Anonymous(), baseUrl: string = ");
+      assert(this.#schema.rootUrl);
+      const baseUrl = new URL(
+        this.#schema.servicePath ?? "",
+        this.#schema.rootUrl,
+      );
+      this.#w.write(
+        "constructor(auth: Auth = new Anonymous(), baseUrl: string = ",
+      );
       this.#w.quote(baseUrl.href);
       this.#w.write(")");
       this.#w.block(() => {
@@ -306,7 +326,7 @@ class Generator {
       }
       this.#w.write(param.name);
       this.#w.write(": ");
-      this.#type(param.type);
+      this.#type(param.schema);
       if (param.default) {
         this.#w.write(" = {}");
       }
@@ -319,35 +339,40 @@ class Generator {
       assert(param.required, "path params must be required");
       params.push({
         name,
-        type: param,
+        schema: param,
         description: param.description,
       });
     }
     if (method.request) {
       params.push({
         name: "req",
-        type: method.request,
+        schema: method.request,
       });
     }
     if (method.queryParams.length > 0) {
       params.push({
         name: "opts",
-        type: { type: undefined, $ref: `${method.pascalCaseName}Options` },
+        schema: { $ref: `${method.pascalCaseName}Options` },
         default: true,
       });
     }
 
     this.#w.blankLine();
-    this.#writeDocComment(method.description, params);
+    if (method.description) this.#writeDocComment(method.description, params);
     this.#w.write("async ");
     this.#w.write(method.camelCaseName);
     this.#w.write("(");
     this.#writeParams(params);
     this.#w.write("): Promise<");
-    this.#type(method.response);
+    if (method.response) {
+      this.#type(method.response);
+    } else {
+      this.#w.write("void");
+    }
     this.#w.write(">");
     this.#w.block(() => {
       // construct url
+      assert(method.path);
       let path = method.path;
       for (const [name] of method.pathParams) {
         path = path.replace(`{+${name}}`, `\${ ${name} }`);
@@ -377,6 +402,7 @@ class Generator {
       this.#w.write(`const resp = await this.#auth.request(url.href, `);
       this.#w.inlineBlock(() => {
         this.#w.write("method: ");
+        assert(method.httpMethod);
         this.#w.quote(method.httpMethod);
         this.#w.write(",");
         this.#w.newLine();
@@ -430,17 +456,19 @@ class Generator {
   }
 
   #writeTypes() {
+    if (this.#schema.schemas === undefined) return;
     const schemas = Object.values(this.#schema.schemas);
-    schemas.sort((a, b) => a.id.localeCompare(b.id));
+    schemas.sort((a, b) => (a.id ?? "").localeCompare(b.id ?? ""));
     for (const schema of schemas) {
       this.#writeType(schema);
     }
   }
 
-  #writeType(schema: DiscoverySchema) {
+  #writeType(schema: JsonSchema) {
     this.#w.blankLine();
     if (schema.description) this.#writeDocComment(schema.description);
     this.#w.write("export interface ");
+    assert(schema.id);
     this.#w.write(schema.id);
     this.#w.block(() => {
       assert(schema.type === "object", "schema must be an object");
@@ -467,6 +495,6 @@ class Generator {
   }
 }
 
-export function generate(schema: Discovery): string {
-  return new Generator(schema).generate();
+export function generate(schema: RestDescription, selfUrl: string): string {
+  return new Generator(schema, selfUrl).generate();
 }

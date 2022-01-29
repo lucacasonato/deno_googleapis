@@ -1,4 +1,6 @@
-import { generate } from "../generator/generator.ts";
+#!/usr/bin/env -S deno run --allow-read=. --allow-net --allow-env --allow-hrtime
+import { assert } from "../generator/deps.ts";
+import { generate, primaryName } from "../generator/generator.ts";
 import { Anonymous, Discovery, router, serve } from "./deps.ts";
 
 const discovery = new Discovery(new Anonymous());
@@ -6,8 +8,8 @@ const list = await discovery.apisList({ preferred: true });
 
 const handler = router({
   "GET@/": home,
-  "GET@/v1/{:id}.ts": code,
-  "GET@/v1/{:id}": code,
+  "GET@/v1/{:api}\\:{:version}.ts": code,
+  "GET@/v1/{:api}\\:{:version}": code,
   "GET@/_/auth@v1/mod.ts": async () => {
     const url = new URL("../auth/mod.ts", import.meta.url);
     const resp = await fetch(url.href);
@@ -19,7 +21,9 @@ const handler = router({
   },
 });
 
-const html = `<!DOCTYPE html>
+function home(req: Request): Response {
+  const origin = new URL(req.url).origin;
+  const html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
@@ -32,7 +36,7 @@ const html = `<!DOCTYPE html>
     </p>
     <h2>Example</h2>
     <pre><code>// Import the client
-import { ServiceAccount, Spanner } from "https://googleapis.deno.dev/v1/spanner:v1.ts";
+import { ServiceAccount, Spanner } from "${origin}/v1/spanner:v1.ts";
 
 // Read the service account key.
 const file = Deno.readTextFileSync("service-account.json");
@@ -56,21 +60,22 @@ console.log(instances);
       </thead>
       <tbody>
 ${
-  list.items!.map((service) => {
-    const url = `https://googleapis.deno.dev/v1/${service.id}.ts`;
-    const name = service.name![0].toUpperCase() + service.name!.slice(1);
-    return `
+    list.items!.map((service) => {
+      const url = `${origin}/v1/${service.id}.ts`;
+      assert(service.name);
+      assert(service.title);
+      const name = primaryName(service.name, service.title?.split(" "));
+      return `
         <tr>
           <td><a href="${url}">${service.title}</a></td>
           <td><pre>import { ${name} } from "${url}";</pre></td>
           <td><a href="https://doc.deno.land/${url}">Docs</a></td>
         </tr>`;
-  }).join("\n")
-}
+    }).join("\n")
+  }
 
     `;
 
-function home(): Response {
   return new Response(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -78,14 +83,12 @@ function home(): Response {
   });
 }
 
-async function code(req: Request, { id }: Record<string, string>): Promise<Response> {
-  const service = list.items!.find((i) => i.id === id);
-  if (!service) {
-    return new Response("Service not found", { status: 404 });
-  }
-  const resp = await fetch(service.discoveryRestUrl!);
-  const schema = await resp.json();
-  const module = generate(schema);
+async function code(
+  req: Request,
+  { api, version }: Record<string, string>,
+): Promise<Response> {
+  const service = await discovery.apisGetRest(version, api);
+  const module = generate(service, req.url);
   const acceptsHtml = req.headers.get("accept")?.includes("text/html");
   if (acceptsHtml) {
     return new Response(module, {
