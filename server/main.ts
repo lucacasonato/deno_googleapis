@@ -6,8 +6,8 @@ const list = await discovery.apisList({ preferred: true });
 
 const handler = router({
   "GET@/": home,
-  "GET@/v1/{:id}": code,
   "GET@/v1/{:id}.ts": code,
+  "GET@/v1/{:id}": code,
   "GET@/_/auth@v1/mod.ts": async () => {
     const url = new URL("../auth/mod.ts", import.meta.url);
     const resp = await fetch(url.href);
