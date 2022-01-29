@@ -102,7 +102,7 @@ class Generator {
   }
 
   get #selfUrl() {
-    return `https://googleapis.deno.dev/v1/${this.#schema.id}`;
+    return `https://googleapis.deno.dev/v1/${this.#schema.id}.ts`;
   }
 
   /** Escape a documentation string so it is safe to use in a multiline JS

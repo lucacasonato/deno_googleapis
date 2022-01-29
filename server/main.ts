@@ -6,7 +6,7 @@ const list = await discovery.apisList({ preferred: true });
 
 const handler = router({
   "GET@/": home,
-  "GET@/v1/{:id}": async (req, { id }) => {
+  "GET@/v1/{:id}.ts": async (req, { id }) => {
     const service = list.items!.find((i) => i.id === id);
     if (!service) {
       return new Response("Service not found", { status: 404 });
@@ -52,7 +52,7 @@ const html = `<!DOCTYPE html>
     </p>
     <h2>Example</h2>
     <pre><code>// Import the client
-import { ServiceAccount, Spanner } from "https://googleapis.deno.dev/v1/spanner:v1";
+import { ServiceAccount, Spanner } from "https://googleapis.deno.dev/v1/spanner:v1.ts";
 
 // Read the service account key.
 const file = Deno.readTextFileSync("service-account.json");
@@ -77,7 +77,7 @@ console.log(instances);
       <tbody>
 ${
   list.items!.map((service) => {
-    const url = `https://googleapis.deno.dev/v1/${service.id}`;
+    const url = `https://googleapis.deno.dev/v1/${service.id}.ts`;
     const name = service.name![0].toUpperCase() + service.name!.slice(1);
     return `
         <tr>

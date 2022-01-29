@@ -6,7 +6,7 @@
  * Provides information about other Google APIs, such as what APIs are available, the resource, and method details for each API.
  * 
  * Docs: https://developers.google.com/discovery/
- * Source: https://googleapis.deno.dev/v1/discovery:v1
+ * Source: https://googleapis.deno.dev/v1/discovery:v1.ts
  */
 
 import { Auth } from "../auth/mod.ts";
