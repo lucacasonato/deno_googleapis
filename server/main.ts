@@ -6,28 +6,8 @@ const list = await discovery.apisList({ preferred: true });
 
 const handler = router({
   "GET@/": home,
-  "GET@/v1/{:id}.ts": async (req, { id }) => {
-    const service = list.items!.find((i) => i.id === id);
-    if (!service) {
-      return new Response("Service not found", { status: 404 });
-    }
-    const resp = await fetch(service.discoveryRestUrl!);
-    const schema = await resp.json();
-    const module = generate(schema);
-    const acceptsHtml = req.headers.get("accept")?.includes("text/html");
-    if (acceptsHtml) {
-      return new Response(module, {
-        headers: {
-          "content-type": "text/plain",
-        },
-      });
-    }
-    return new Response(module, {
-      headers: {
-        "content-type": "application/typescript; charset=utf-8",
-      },
-    });
-  },
+  "GET@/v1/{:id}": code,
+  "GET@/v1/{:id}.ts": code,
   "GET@/_/auth@v1/mod.ts": async () => {
     const url = new URL("../auth/mod.ts", import.meta.url);
     const resp = await fetch(url.href);
@@ -94,6 +74,29 @@ function home(): Response {
   return new Response(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
+    },
+  });
+}
+
+async function code(req: Request, { id }: Record<string, string>): Promise<Response> {
+  const service = list.items!.find((i) => i.id === id);
+  if (!service) {
+    return new Response("Service not found", { status: 404 });
+  }
+  const resp = await fetch(service.discoveryRestUrl!);
+  const schema = await resp.json();
+  const module = generate(schema);
+  const acceptsHtml = req.headers.get("accept")?.includes("text/html");
+  if (acceptsHtml) {
+    return new Response(module, {
+      headers: {
+        "content-type": "text/plain",
+      },
+    });
+  }
+  return new Response(module, {
+    headers: {
+      "content-type": "application/typescript; charset=utf-8",
     },
   });
 }
