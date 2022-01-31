@@ -143,7 +143,7 @@ class Generator {
  * Encodes a given Uint8Array, ArrayBuffer or string into RFC4648 base64 representation
  * @param data
  */
-export function encodeBase64(uint8: Uint8Array): string {
+function encodeBase64(uint8: Uint8Array): string {
   let result = "", i;
   const l = uint8.length;
   for (i = 2; i < l; i += 3) {
