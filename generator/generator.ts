@@ -399,7 +399,7 @@ class Generator {
         this.#w.writeLine(`const body = JSON.stringify(req);`);
       }
       // make request
-      this.#w.write(`const resp = await this.#auth.request(url.href, `);
+      this.#w.write(`const data = await this.#auth.request(url.href, `);
       this.#w.inlineBlock(() => {
         this.#w.write("method: ");
         assert(method.httpMethod);
@@ -412,17 +412,9 @@ class Generator {
       });
       this.#w.write(`);`);
       this.#w.newLine();
-      this.#w.write("if (resp.status >= 500)");
-      this.#w.block(() => {
-        this.#w.writeLine("const body = await resp.text();");
-        this.#w.writeLine(
-          "throw new Error(`${resp.status} ${resp.statusText}: ${body}`);",
-        );
-      });
-      // TODO(lucacasonato): handle errors
       // deserialize response
       // TODO(lucacasonato): deserialize properly
-      this.#w.write(`return resp.json();`);
+      this.#w.write(`return data as any;`);
     });
   }
 

@@ -2,14 +2,15 @@
 /**
  * API Discovery Service Client for Deno
  * =====================================
- * 
+ *
  * Provides information about other Google APIs, such as what APIs are available, the resource, and method details for each API.
- * 
+ *
  * Docs: https://developers.google.com/discovery/
- * Source: https://googleapis.deno.dev/v1/discovery:v1.ts
+ * Source: http://localhost:8000/v1/discovery:v1.ts
  */
 
-import { Auth } from "../auth/mod.ts";
+import { Anonymous, Auth, ServiceAccount } from "../auth/mod.ts";
+export { Anonymous, ServiceAccount };
 
 /**
  * Provides information about other Google APIs, such as what APIs are
@@ -19,7 +20,10 @@ export class Discovery {
   #auth: Auth;
   #baseUrl: string;
 
-  constructor(auth: Auth, baseUrl: string = "https://www.googleapis.com/discovery/v1/") {
+  constructor(
+    auth: Auth = new Anonymous(),
+    baseUrl: string = "https://www.googleapis.com/discovery/v1/",
+  ) {
     this.#auth = auth;
     this.#baseUrl = baseUrl;
   }
@@ -27,41 +31,32 @@ export class Discovery {
   /**
    * Retrieve the description of a particular version of an api.
    *
-   * @param version The version of the API.
    * @param api The name of the API.
+   * @param version The version of the API.
    */
-  async apisGetRest(version: string, api: string): Promise<RestDescription> {
+  async apisGetRest(api: string, version: string): Promise<RestDescription> {
     const url = new URL(`${this.#baseUrl}apis/${api}/${version}/rest`);
-    const resp = await this.#auth.request(url.href, {
+    const data = await this.#auth.request(url.href, {
       method: "GET",
     });
-    if (resp.status >= 500) {
-      const body = await resp.text();
-      throw new Error(`${resp.status} ${resp.statusText}: ${body}`);
-    }
-    return resp.json();
+    return data as any;
   }
 
   /**
    * Retrieve the list of APIs supported at this endpoint.
-   *
    */
   async apisList(opts: ApisListOptions = {}): Promise<DirectoryList> {
     const url = new URL(`${this.#baseUrl}apis`);
-    if (opts.preferred !== undefined) {
-      url.searchParams.append("preferred", String(opts.preferred));
-    }
     if (opts.name !== undefined) {
       url.searchParams.append("name", String(opts.name));
     }
-    const resp = await this.#auth.request(url.href, {
+    if (opts.preferred !== undefined) {
+      url.searchParams.append("preferred", String(opts.preferred));
+    }
+    const data = await this.#auth.request(url.href, {
       method: "GET",
     });
-    if (resp.status >= 500) {
-      const body = await resp.text();
-      throw new Error(`${resp.status} ${resp.statusText}: ${body}`);
-    }
-    return resp.json();
+    return data as any;
   }
 }
 
@@ -70,63 +65,67 @@ export class Discovery {
  */
 export interface ApisListOptions {
   /**
-   * Return only the preferred version of an API.
-   */
-  preferred?: boolean;
-  /**
    * Only include APIs with the given name.
    */
   name?: string;
+  /**
+   * Return only the preferred version of an API.
+   */
+  preferred?: boolean;
+}
+
+export interface DirectoryList {
+  /**
+   * Indicate the version of the Discovery API used to generate this doc.
+   */
+  discoveryVersion?: string;
+  /**
+   * The individual directory entries. One entry per api/version pair.
+   */
+  items?: {
+    description?: string;
+    discoveryLink?: string;
+    discoveryRestUrl?: string;
+    documentationLink?: string;
+    icons?: {
+      x16?: string;
+      x32?: string;
+    };
+    id?: string;
+    kind?: string;
+    labels?: string[];
+    name?: string;
+    preferred?: boolean;
+    title?: string;
+    version?: string;
+  }[];
+  /**
+   * The kind for this response.
+   */
+  kind?: string;
 }
 
 export interface JsonSchema {
   /**
-   * Unique identifier for this schema.
+   * A reference to another schema. The value of this property is the "id" of
+   * another schema.
    */
-  id?: string;
+  $ref?: string;
   /**
-   * The value type for this schema. A list of values can be found here:
-   * http://tools.ietf.org/html/draft-zyp-json-schema-03#section-5.1
+   * If this is a schema for an object, this property is the schema for any
+   * additional properties with dynamic keys on this object.
    */
-  type?: string;
+  additionalProperties?: JsonSchema;
   /**
-   * Whether this parameter may appear multiple times.
+   * Additional information about this property.
    */
-  repeated?: boolean;
-  /**
-   * In a variant data type, the value of one property is used to determine how
-   * to interpret the entire entity. Its value must exist in a map of
-   * descriminant values to schema names.
-   */
-  variant?: {
-    map?: {
-      $ref?: string;
-      type_value?: string;
-    }[];
-    discriminant?: string;
+  annotations?: {
+    required?: string[];
   };
   /**
-   * The maximum value of this parameter.
+   * The default value of this property (if one exists).
    */
-  maximum?: string;
-  /**
-   * An additional regular expression or key that helps constrain the value.
-   * For more details see:
-   * http://tools.ietf.org/html/draft-zyp-json-schema-03#section-5.23
-   */
-  format?: string;
-  /**
-   * If this is a schema for an array, this property is the schema for each
-   * element in the array.
-   */
-  items?: JsonSchema;
-  /**
-   * If this is a schema for an object, list the schema for each property of
-   * this object.
-   */
-  properties?: {
-    [key: string]: JsonSchema
-  };
+  default?: string;
   /**
    * A description of this object.
    */
@@ -136,40 +135,37 @@ export interface JsonSchema {
    */
   enum?: string[];
   /**
-   * Additional information about this property.
-   */
-  annotations?: {
-    required?: string[];
-  };
-  /**
    * The descriptions for the enums. Each position maps to the corresponding
    * value in the "enum" array.
    */
   enumDescriptions?: string[];
   /**
+   * An additional regular expression or key that helps constrain the value.
+   * For more details see:
+   * http://tools.ietf.org/html/draft-zyp-json-schema-03#section-5.23
+   */
+  format?: string;
+  /**
+   * Unique identifier for this schema.
+   */
+  id?: string;
+  /**
+   * If this is a schema for an array, this property is the schema for each
+   * element in the array.
+   */
+  items?: JsonSchema;
+  /**
    * Whether this parameter goes in the query or the path for REST requests.
    */
   location?: string;
   /**
-   * The default value of this property (if one exists).
+   * The maximum value of this parameter.
    */
-  default?: string;
+  maximum?: string;
   /**
-   * The value is read-only, generated by the service. The value cannot be
-   * modified by the client. If the value is included in a POST, PUT, or PATCH
-   * request, it is ignored by the service.
+   * The minimum value of this parameter.
    */
-  readOnly?: boolean;
-  /**
-   * If this is a schema for an object, this property is the schema for any
-   * additional properties with dynamic keys on this object.
-   */
-  additionalProperties?: JsonSchema;
-  /**
-   * A reference to another schema. The value of this property is the "id" of
-   * another schema.
-   */
-  $ref?: string;
+  minimum?: string;
   /**
    * The regular expression this parameter must conform to. Uses Java 6 regex
    * format:
@@ -177,86 +173,46 @@ export interface JsonSchema {
    */
   pattern?: string;
   /**
-   * The minimum value of this parameter.
+   * If this is a schema for an object, list the schema for each property of
+   * this object.
    */
-  minimum?: string;
+  properties?: {
+    [key: string]: JsonSchema;
+  };
+  /**
+   * The value is read-only, generated by the service. The value cannot be
+   * modified by the client. If the value is included in a POST, PUT, or PATCH
+   * request, it is ignored by the service.
+   */
+  readOnly?: boolean;
+  /**
+   * Whether this parameter may appear multiple times.
+   */
+  repeated?: boolean;
   /**
    * Whether the parameter is required.
    */
   required?: boolean;
-}
-
-export interface DirectoryList {
   /**
-   * The kind for this response.
+   * The value type for this schema. A list of values can be found here:
+   * http://tools.ietf.org/html/draft-zyp-json-schema-03#section-5.1
    */
-  kind?: string;
+  type?: string;
   /**
-   * The individual directory entries. One entry per api/version pair.
+   * In a variant data type, the value of one property is used to determine how
+   * to interpret the entire entity. Its value must exist in a map of
+   * descriminant values to schema names.
    */
-  items?: {
-    icons?: {
-      x32?: string;
-      x16?: string;
-    };
-    discoveryRestUrl?: string;
-    title?: string;
-    labels?: string[];
-    kind?: string;
-    version?: string;
-    preferred?: boolean;
-    id?: string;
-    discoveryLink?: string;
-    name?: string;
-    description?: string;
-    documentationLink?: string;
-  }[];
-  /**
-   * Indicate the version of the Discovery API used to generate this doc.
-   */
-  discoveryVersion?: string;
-}
-
-export interface RestResource {
-  /**
-   * Methods on this resource.
-   */
-  methods?: {
-    [key: string]: RestMethod
-  };
-  /**
-   * Sub-resources on this resource.
-   */
-  resources?: {
-    [key: string]: RestResource
+  variant?: {
+    discriminant?: string;
+    map?: {
+      $ref?: string;
+      type_value?: string;
+    }[];
   };
 }
 
 export interface RestDescription {
-  /**
-   * The version of this API.
-   */
-  revision?: string;
-  /**
-   * The name of the owner of this API. See ownerDomain.
-   */
-  ownerName?: string;
-  /**
-   * The title of this API.
-   */
-  title?: string;
-  /**
-   * The version of this API.
-   */
-  version?: string;
-  /**
-   * The root URL under which all API services live.
-   */
-  rootUrl?: string;
-  /**
-   * Indicate the version of the Discovery API used to generate this doc.
-   */
-  discoveryVersion?: string;
   /**
    * Authentication information.
    */
@@ -265,88 +221,80 @@ export interface RestDescription {
       scopes?: {
         [key: string]: {
           description?: string;
-        }
+        };
       };
     };
-  };
-  /**
-   * Common parameters that apply across all apis.
-   */
-  parameters?: {
-    [key: string]: JsonSchema
-  };
-  /**
-   * Labels for the status of this API, such as labs or deprecated.
-   */
-  labels?: string[];
-  /**
-   * The path for REST batch requests.
-   */
-  batchPath?: string;
-  /**
-   * Enable exponential backoff for suitable methods in the generated clients.
-   */
-  exponentialBackoffDefault?: boolean;
-  /**
-   * The protocol described by this document.
-   */
-  protocol?: string;
-  /**
-   * The name of this API.
-   */
-  name?: string;
-  /**
-   * API-level methods for this API.
-   */
-  methods?: {
-    [key: string]: RestMethod
-  };
-  /**
-   * The ETag for this response.
-   */
-  etag?: string;
-  /**
-   * The kind for this response.
-   */
-  kind?: string;
-  /**
-   * A link to human readable documentation for the API.
-   */
-  documentationLink?: string;
-  /**
-   * The base path for all REST requests.
-   */
-  servicePath?: string;
-  version_module?: boolean;
-  /**
-   * Links to 16x16 and 32x32 icons representing the API.
-   */
-  icons?: {
-    x32?: string;
-    x16?: string;
-  };
-  /**
-   * The description of this API.
-   */
-  description?: string;
-  /**
-   * The schemas for this API.
-   */
-  schemas?: {
-    [key: string]: JsonSchema
   };
   /**
    * [DEPRECATED] The base path for REST requests.
    */
   basePath?: string;
   /**
+   * [DEPRECATED] The base URL for REST requests.
+   */
+  baseUrl?: string;
+  /**
+   * The path for REST batch requests.
+   */
+  batchPath?: string;
+  /**
+   * Indicates how the API name should be capitalized and split into various
+   * parts. Useful for generating pretty class names.
+   */
+  canonicalName?: string;
+  /**
+   * The description of this API.
+   */
+  description?: string;
+  /**
+   * Indicate the version of the Discovery API used to generate this doc.
+   */
+  discoveryVersion?: string;
+  /**
+   * A link to human readable documentation for the API.
+   */
+  documentationLink?: string;
+  /**
+   * The ETag for this response.
+   */
+  etag?: string;
+  /**
+   * Enable exponential backoff for suitable methods in the generated clients.
+   */
+  exponentialBackoffDefault?: boolean;
+  /**
    * A list of supported features for this API.
    */
   features?: string[];
   /**
-   * [DEPRECATED] The base URL for REST requests.
+   * Links to 16x16 and 32x32 icons representing the API.
    */
-  baseUrl?: string;
+  icons?: {
+    x16?: string;
+    x32?: string;
+  };
+  /**
+   * The ID of this API.
+   */
+  id?: string;
+  /**
+   * The kind for this response.
+   */
+  kind?: string;
+  /**
+   * Labels for the status of this API, such as labs or deprecated.
+   */
+  labels?: string[];
+  /**
+   * API-level methods for this API.
+   */
+  methods?: {
+    [key: string]: RestMethod;
+  };
+  /**
+   * The name of this API.
+   */
+  name?: string;
   /**
    * The domain of the owner of this API. Together with the ownerName and a
    * packagePath values, this can be used to generate a library for this API
@@ -354,58 +302,133 @@ export interface RestDescription {
    */
   ownerDomain?: string;
   /**
-   * The ID of this API.
+   * The name of the owner of this API. See ownerDomain.
    */
-  id?: string;
-  /**
-   * The resources in this API.
-   */
-  resources?: {
-    [key: string]: RestResource
-  };
-  /**
-   * Indicates how the API name should be capitalized and split into various
-   * parts. Useful for generating pretty class names.
-   */
-  canonicalName?: string;
+  ownerName?: string;
   /**
    * The package of the owner of this API. See ownerDomain.
    */
   packagePath?: string;
+  /**
+   * Common parameters that apply across all apis.
+   */
+  parameters?: {
+    [key: string]: JsonSchema;
+  };
+  /**
+   * The protocol described by this document.
+   */
+  protocol?: string;
+  /**
+   * The resources in this API.
+   */
+  resources?: {
+    [key: string]: RestResource;
+  };
+  /**
+   * The version of this API.
+   */
+  revision?: string;
+  /**
+   * The root URL under which all API services live.
+   */
+  rootUrl?: string;
+  /**
+   * The schemas for this API.
+   */
+  schemas?: {
+    [key: string]: JsonSchema;
+  };
+  /**
+   * The base path for all REST requests.
+   */
+  servicePath?: string;
+  /**
+   * The title of this API.
+   */
+  title?: string;
+  /**
+   * The version of this API.
+   */
+  version?: string;
+  version_module?: boolean;
 }
 
 export interface RestMethod {
   /**
+   * Description of this method.
+   */
+  description?: string;
+  /**
+   * Whether this method requires an ETag to be specified. The ETag is sent as
+   * an HTTP If-Match or If-None-Match header.
+   */
+  etagRequired?: boolean;
+  /**
+   * The URI path of this REST method in (RFC 6570) format without level 2
+   * features ({+var}). Supplementary to the path property.
+   */
+  flatPath?: string;
+  /**
+   * HTTP method used by this method.
+   */
+  httpMethod?: string;
+  /**
+   * A unique ID for this method. This property can be used to match methods
+   * between different versions of Discovery.
+   */
+  id?: string;
+  /**
    * Media upload parameters.
    */
   mediaUpload?: {
+    accept?: string[];
     maxSize?: string;
     protocols?: {
-      simple?: {
-        multipart?: boolean;
-        path?: string;
-      };
       resumable?: {
         multipart?: boolean;
         path?: string;
       };
+      simple?: {
+        multipart?: boolean;
+        path?: string;
+      };
     };
-    accept?: string[];
   };
   /**
-   * Whether this method supports subscriptions.
+   * Ordered list of required parameters, serves as a hint to clients on how to
+   * structure their method signatures. The array is ordered such that the
+   * "most-significant" parameter appears first.
    */
-  supportsSubscription?: boolean;
+  parameterOrder?: string[];
+  /**
+   * Details for all parameters in this method.
+   */
+  parameters?: {
+    [key: string]: JsonSchema;
+  };
   /**
    * The URI path of this REST method. Should be used in conjunction with the
    * basePath property at the api-level.
    */
   path?: string;
   /**
-   * The URI path of this REST method in (RFC 6570) format without level 2
-   * features ({+var}). Supplementary to the path property.
+   * The schema for the request.
    */
-  flatPath?: string;
+  request?: {
+    $ref?: string;
+    parameterName?: string;
+  };
+  /**
+   * The schema for the response.
+   */
+  response?: {
+    $ref?: string;
+  };
+  /**
+   * OAuth 2.0 scopes applicable to this method.
+   */
+  scopes?: string[];
   /**
    * Whether this method supports media downloads.
    */
@@ -415,55 +438,27 @@ export interface RestMethod {
    */
   supportsMediaUpload?: boolean;
   /**
-   * HTTP method used by this method.
+   * Whether this method supports subscriptions.
    */
-  httpMethod?: string;
-  /**
-   * The schema for the request.
-   */
-  request?: {
-    parameterName?: string;
-    $ref?: string;
-  };
+  supportsSubscription?: boolean;
   /**
    * Indicates that downloads from this method should use the download service
    * URL (i.e. "/download"). Only applies if the method supports media download.
    */
   useMediaDownloadService?: boolean;
+}
+
+export interface RestResource {
   /**
-   * The schema for the response.
+   * Methods on this resource.
    */
-  response?: {
-    $ref?: string;
+  methods?: {
+    [key: string]: RestMethod;
   };
   /**
-   * Ordered list of required parameters, serves as a hint to clients on how to
-   * structure their method signatures. The array is ordered such that the
-   * "most-significant" parameter appears first.
+   * Sub-resources on this resource.
    */
-  parameterOrder?: string[];
-  /**
-   * Description of this method.
-   */
-  description?: string;
-  /**
-   * A unique ID for this method. This property can be used to match methods
-   * between different versions of Discovery.
-   */
-  id?: string;
-  /**
-   * OAuth 2.0 scopes applicable to this method.
-   */
-  scopes?: string[];
-  /**
-   * Whether this method requires an ETag to be specified. The ETag is sent as
-   * an HTTP If-Match or If-None-Match header.
-   */
-  etagRequired?: boolean;
-  /**
-   * Details for all parameters in this method.
-   */
-  parameters?: {
-    [key: string]: JsonSchema
+  resources?: {
+    [key: string]: RestResource;
   };
 }

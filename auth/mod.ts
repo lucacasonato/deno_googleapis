@@ -7,7 +7,7 @@ export interface RequestOpts {
 
 export interface Auth {
   projectId?: string;
-  request(url: string, opts: RequestOpts): Promise<Response>;
+  request(url: string, opts: RequestOpts): Promise<unknown>;
 }
 
 export interface ServiceAccountKey {
@@ -30,8 +30,8 @@ export class Anonymous implements Auth {
     return undefined;
   }
 
-  async request(url: string, opts: RequestOpts): Promise<Response> {
-    return await fetch(url, {
+  async request(url: string, opts: RequestOpts): Promise<unknown> {
+    const resp = await fetch(url, {
       headers: {
         "accept": "application/json",
         "content-type": "application/json",
@@ -39,6 +39,7 @@ export class Anonymous implements Auth {
       body: opts.body,
       method: opts.method,
     });
+    return await decodeResponse(resp);
   }
 }
 
@@ -85,10 +86,10 @@ export class ServiceAccount implements Auth {
       .sign(this.#privateKey);
   }
 
-  async request(url: string, opts: RequestOpts): Promise<Response> {
+  async request(url: string, opts: RequestOpts): Promise<unknown> {
     const aud = new URL(url).origin + "/";
     const token = await this.#token(aud);
-    return await fetch(url, {
+    const resp = await fetch(url, {
       headers: {
         "accept": "application/json",
         "authorization": `Bearer ${token}`,
@@ -97,5 +98,43 @@ export class ServiceAccount implements Auth {
       body: opts.body,
       method: opts.method,
     });
+    return await decodeResponse(resp);
+  }
+}
+
+async function decodeResponse(resp: Response): Promise<unknown> {
+  if (resp.status >= 400) {
+    if (resp.headers.get("content-type")?.includes("application/json")) {
+      const body = await resp.json();
+      throw new GoogleApiError(
+        resp.status,
+        body.error.code,
+        body.error.message,
+        body.error.details,
+      );
+    } else {
+      const body = await resp.text();
+      throw new GoogleApiError(
+        resp.status,
+        "UNCLASSIFIED",
+        body,
+        undefined,
+      );
+    }
+  }
+  return await resp.json();
+}
+
+export class GoogleApiError extends Error {
+  status: number;
+  code: string;
+  details: unknown;
+
+  constructor(status: number, code: string, message: string, details: unknown) {
+    super(`${code}: ${message}`);
+    this.name = "GoogleApiError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
   }
 }

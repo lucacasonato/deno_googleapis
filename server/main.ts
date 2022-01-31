@@ -87,7 +87,7 @@ async function code(
   req: Request,
   { api, version }: Record<string, string>,
 ): Promise<Response> {
-  const service = await discovery.apisGetRest(version, api);
+  const service = await discovery.apisGetRest(api, version);
   const module = generate(service, req.url);
   const acceptsHtml = req.headers.get("accept")?.includes("text/html");
   if (acceptsHtml) {
