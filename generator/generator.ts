@@ -226,8 +226,9 @@ function encodeBase64(uint8: Uint8Array): string {
     this.#w.writeLine(header);
     this.#w.blankLine();
 
-    const imports =
-      `import { Anonymous, Auth, ServiceAccount } from "/_/auth@v1/mod.ts";\nexport { Anonymous, ServiceAccount };`;
+    const imports = `import { auth, CredentialsClient, GoogleAuth, request } from "/_/base@v1/mod.ts";
+export { auth, GoogleAuth };
+export type { CredentialsClient };`;
     this.#w.writeLine(imports);
     this.#w.blankLine();
   }
@@ -319,7 +320,7 @@ function encodeBase64(uint8: Uint8Array): string {
     this.#w.write(this.#name);
     this.#w.block(() => {
       // write fields
-      this.#w.writeLine("#auth: Auth;");
+      this.#w.writeLine("#client: CredentialsClient | undefined;");
       this.#w.writeLine("#baseUrl: string;");
       this.#w.blankLine();
 
@@ -330,12 +331,12 @@ function encodeBase64(uint8: Uint8Array): string {
         this.#schema.rootUrl,
       );
       this.#w.write(
-        "constructor(auth: Auth = new Anonymous(), baseUrl: string = ",
+        "constructor(client?: CredentialsClient, baseUrl: string = ",
       );
       this.#w.quote(baseUrl.href);
       this.#w.write(")");
       this.#w.block(() => {
-        this.#w.writeLine("this.#auth = auth;");
+        this.#w.writeLine("this.#client = client;");
         this.#w.writeLine("this.#baseUrl = baseUrl;");
       });
 
@@ -452,9 +453,9 @@ function encodeBase64(uint8: Uint8Array): string {
         this.#w.block(() => {
           this.#w.write(`url.searchParams.append(`);
           this.#w.quote(name);
-          this.#w.write(`, encodeURIComponent(opts`);
+          this.#w.write(`, encodeURIComponent(String(opts`);
           this.#writeIndex(name);
-          this.#w.write(`));`);
+          this.#w.write(`) as any));`);
         });
       }
       // create request body
@@ -462,8 +463,9 @@ function encodeBase64(uint8: Uint8Array): string {
         this.#w.writeLine(`const body = JSON.stringify(req);`);
       }
       // make request
-      this.#w.write(`const data = await this.#auth.request(url.href, `);
+      this.#w.write(`const data = await request(url.href, `);
       this.#w.inlineBlock(() => {
+        this.#w.writeLine("client: this.#client,");
         this.#w.write("method: ");
         assert(method.httpMethod);
         this.#w.quote(method.httpMethod);

@@ -10,8 +10,44 @@ const handler = router({
   "GET@/": home,
   "GET@/v1/{:api}\\:{:version}.ts": code,
   "GET@/v1/{:api}\\:{:version}": code,
-  "GET@/_/auth@v1/mod.ts": async () => {
-    const url = new URL("../auth/mod.ts", import.meta.url);
+  "GET@/_/base@v1/mod.ts": async () => {
+    const url = new URL("../base/mod.ts", import.meta.url);
+    const resp = await fetch(url.href);
+    return new Response(await resp.text(), {
+      headers: {
+        "content-type": "application/typescript; charset=utf-8",
+      },
+    });
+  },
+  "GET@/_/base@v1/util.ts": async () => {
+    const url = new URL("../base/util.ts", import.meta.url);
+    const resp = await fetch(url.href);
+    return new Response(await resp.text(), {
+      headers: {
+        "content-type": "application/typescript; charset=utf-8",
+      },
+    });
+  },
+  "GET@/_/base@v1/auth/mod.ts": async () => {
+    const url = new URL("../base/auth/mod.ts", import.meta.url);
+    const resp = await fetch(url.href);
+    return new Response(await resp.text(), {
+      headers: {
+        "content-type": "application/typescript; charset=utf-8",
+      },
+    });
+  },
+  "GET@/_/base@v1/auth/jwt.ts": async () => {
+    const url = new URL("../base/auth/jwt.ts", import.meta.url);
+    const resp = await fetch(url.href);
+    return new Response(await resp.text(), {
+      headers: {
+        "content-type": "application/typescript; charset=utf-8",
+      },
+    });
+  },
+  "GET@/_/base@v1/auth/authclient.ts": async () => {
+    const url = new URL("../base/auth/authclient.ts", import.meta.url);
     const resp = await fetch(url.href);
     return new Response(await resp.text(), {
       headers: {

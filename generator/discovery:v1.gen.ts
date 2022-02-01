@@ -6,7 +6,7 @@
  * Provides information about other Google APIs, such as what APIs are available, the resource, and method details for each API.
  *
  * Docs: https://developers.google.com/discovery/
- * Source: http://localhost:8000/v1/discovery:v1.ts
+ * Source: https://googleapis.deno.dev/v1/discovery:v1
  */
 
 import { Anonymous, Auth, ServiceAccount } from "../auth/mod.ts";
@@ -39,7 +39,7 @@ export class Discovery {
     const data = await this.#auth.request(url.href, {
       method: "GET",
     });
-    return data as any;
+    return data as RestDescription;
   }
 
   /**
@@ -48,15 +48,15 @@ export class Discovery {
   async apisList(opts: ApisListOptions = {}): Promise<DirectoryList> {
     const url = new URL(`${this.#baseUrl}apis`);
     if (opts.name !== undefined) {
-      url.searchParams.append("name", String(opts.name));
+      url.searchParams.append("name", encodeURIComponent(opts.name));
     }
     if (opts.preferred !== undefined) {
-      url.searchParams.append("preferred", String(opts.preferred));
+      url.searchParams.append("preferred", encodeURIComponent(opts.preferred));
     }
     const data = await this.#auth.request(url.href, {
       method: "GET",
     });
-    return data as any;
+    return data as DirectoryList;
   }
 }
 
@@ -257,7 +257,7 @@ export interface RestDescription {
   /**
    * The ETag for this response.
    */
-  etag?: string;
+  readonly etag?: string;
   /**
    * Enable exponential backoff for suitable methods in the generated clients.
    */
