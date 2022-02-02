@@ -10,52 +10,37 @@ const handler = router({
   "GET@/": home,
   "GET@/v1/{:api}\\:{:version}.ts": code,
   "GET@/v1/{:api}\\:{:version}": code,
-  "GET@/_/base@v1/mod.ts": async () => {
-    const url = new URL("../base/mod.ts", import.meta.url);
-    const resp = await fetch(url.href);
-    return new Response(await resp.text(), {
-      headers: {
-        "content-type": "application/typescript; charset=utf-8",
-      },
-    });
-  },
-  "GET@/_/base@v1/util.ts": async () => {
-    const url = new URL("../base/util.ts", import.meta.url);
-    const resp = await fetch(url.href);
-    return new Response(await resp.text(), {
-      headers: {
-        "content-type": "application/typescript; charset=utf-8",
-      },
-    });
-  },
-  "GET@/_/base@v1/auth/mod.ts": async () => {
-    const url = new URL("../base/auth/mod.ts", import.meta.url);
-    const resp = await fetch(url.href);
-    return new Response(await resp.text(), {
-      headers: {
-        "content-type": "application/typescript; charset=utf-8",
-      },
-    });
-  },
-  "GET@/_/base@v1/auth/jwt.ts": async () => {
-    const url = new URL("../base/auth/jwt.ts", import.meta.url);
-    const resp = await fetch(url.href);
-    return new Response(await resp.text(), {
-      headers: {
-        "content-type": "application/typescript; charset=utf-8",
-      },
-    });
-  },
-  "GET@/_/base@v1/auth/authclient.ts": async () => {
-    const url = new URL("../base/auth/authclient.ts", import.meta.url);
-    const resp = await fetch(url.href);
-    return new Response(await resp.text(), {
-      headers: {
-        "content-type": "application/typescript; charset=utf-8",
-      },
-    });
-  },
+  "GET@/_/base@v1/:path*": staticFiles,
 });
+
+async function staticFiles(
+  req: Request,
+  { path }: Record<string, string>,
+): Promise<Response> {
+  const url = new URL("../base/", import.meta.url);
+  url.pathname += path;
+  try {
+    const resp = await fetch(url.href);
+    const module = await resp.text();
+    const acceptsHtml = req.headers.get("accept")?.includes("text/html");
+    if (acceptsHtml) {
+      return new Response(module, {
+        headers: {
+          "content-type": "text/plain",
+        },
+      });
+    }
+    return new Response(module, {
+      headers: {
+        "content-type": "application/typescript; charset=utf-8",
+      },
+    });
+  } catch {
+    return new Response(`Not found: ${url.href}`, {
+      status: 404,
+    });
+  }
+}
 
 function home(req: Request): Response {
   const origin = new URL(req.url).origin;
