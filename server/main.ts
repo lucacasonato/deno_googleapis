@@ -1,9 +1,9 @@
 #!/usr/bin/env -S deno run --allow-read=. --allow-net --allow-env --allow-hrtime
 import { assert } from "../generator/deps.ts";
 import { generate, primaryName } from "../generator/generator.ts";
-import { Anonymous, Discovery, router, serve } from "./deps.ts";
+import { Discovery, router, serve } from "./deps.ts";
 
-const discovery = new Discovery(new Anonymous());
+const discovery = new Discovery();
 const list = await discovery.apisList({ preferred: true });
 
 const handler = router({

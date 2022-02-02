@@ -6,25 +6,26 @@
  * Provides information about other Google APIs, such as what APIs are available, the resource, and method details for each API.
  *
  * Docs: https://developers.google.com/discovery/
- * Source: https://googleapis.deno.dev/v1/discovery:v1
+ * Source: http://localhost:8000/v1/discovery:v1
  */
 
-import { Anonymous, Auth, ServiceAccount } from "../auth/mod.ts";
-export { Anonymous, ServiceAccount };
+import { auth, CredentialsClient, GoogleAuth, request } from "../base/mod.ts";
+export { auth, GoogleAuth };
+export type { CredentialsClient };
 
 /**
  * Provides information about other Google APIs, such as what APIs are
  * available, the resource, and method details for each API.
  */
 export class Discovery {
-  #auth: Auth;
+  #client: CredentialsClient | undefined;
   #baseUrl: string;
 
   constructor(
-    auth: Auth = new Anonymous(),
+    client?: CredentialsClient,
     baseUrl: string = "https://www.googleapis.com/discovery/v1/",
   ) {
-    this.#auth = auth;
+    this.#client = client;
     this.#baseUrl = baseUrl;
   }
 
@@ -36,7 +37,8 @@ export class Discovery {
    */
   async apisGetRest(api: string, version: string): Promise<RestDescription> {
     const url = new URL(`${this.#baseUrl}apis/${api}/${version}/rest`);
-    const data = await this.#auth.request(url.href, {
+    const data = await request(url.href, {
+      client: this.#client,
       method: "GET",
     });
     return data as RestDescription;
@@ -48,12 +50,19 @@ export class Discovery {
   async apisList(opts: ApisListOptions = {}): Promise<DirectoryList> {
     const url = new URL(`${this.#baseUrl}apis`);
     if (opts.name !== undefined) {
-      url.searchParams.append("name", encodeURIComponent(opts.name));
+      url.searchParams.append(
+        "name",
+        encodeURIComponent(String(opts.name) as any),
+      );
     }
     if (opts.preferred !== undefined) {
-      url.searchParams.append("preferred", encodeURIComponent(opts.preferred));
+      url.searchParams.append(
+        "preferred",
+        encodeURIComponent(String(opts.preferred) as any),
+      );
     }
-    const data = await this.#auth.request(url.href, {
+    const data = await request(url.href, {
+      client: this.#client,
       method: "GET",
     });
     return data as DirectoryList;

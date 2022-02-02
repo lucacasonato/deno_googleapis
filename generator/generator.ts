@@ -4,7 +4,7 @@ import {
   RestDescription,
   RestMethod,
   RestResource,
-} from "./discovery:v1.gen.ts";
+} from "https://googleapis.deno.dev/v1/discovery:v1.ts";
 
 interface Method extends RestMethod {
   camelCaseName: string;
@@ -226,7 +226,8 @@ function encodeBase64(uint8: Uint8Array): string {
     this.#w.writeLine(header);
     this.#w.blankLine();
 
-    const imports = `import { auth, CredentialsClient, GoogleAuth, request } from "/_/base@v1/mod.ts";
+    const imports =
+      `import { auth, CredentialsClient, GoogleAuth, request } from "/_/base@v1/mod.ts";
 export { auth, GoogleAuth };
 export type { CredentialsClient };`;
     this.#w.writeLine(imports);
