@@ -456,7 +456,7 @@ export type { CredentialsClient };`;
           this.#w.quote(name);
           this.#w.write(`, encodeURIComponent(String(opts`);
           this.#writeIndex(name);
-          this.#w.write(`) as any));`);
+          this.#w.write(`)));`);
         });
       }
       // create request body

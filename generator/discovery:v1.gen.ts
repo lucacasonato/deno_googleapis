@@ -6,7 +6,7 @@
  * Provides information about other Google APIs, such as what APIs are available, the resource, and method details for each API.
  *
  * Docs: https://developers.google.com/discovery/
- * Source: http://localhost:8000/v1/discovery:v1
+ * Source: https://googleapis.deno.dev/v1/discovery:v1.ts
  */
 
 import { auth, CredentialsClient, GoogleAuth, request } from "../base/mod.ts";
@@ -52,13 +52,13 @@ export class Discovery {
     if (opts.name !== undefined) {
       url.searchParams.append(
         "name",
-        encodeURIComponent(String(opts.name) as any),
+        encodeURIComponent(String(opts.name)),
       );
     }
     if (opts.preferred !== undefined) {
       url.searchParams.append(
         "preferred",
-        encodeURIComponent(String(opts.preferred) as any),
+        encodeURIComponent(String(opts.preferred)),
       );
     }
     const data = await request(url.href, {

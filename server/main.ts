@@ -1,5 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read=. --allow-net --allow-env --allow-hrtime
+import { request } from "../base/mod.ts";
 import { assert } from "../generator/deps.ts";
+import { RestDescription } from "../generator/discovery:v1.gen.ts";
 import { generate, primaryName } from "../generator/generator.ts";
 import { Discovery, router, serve } from "./deps.ts";
 
@@ -108,7 +110,19 @@ async function code(
   req: Request,
   { api, version }: Record<string, string>,
 ): Promise<Response> {
-  const service = await discovery.apisGetRest(api, version);
+  const discoveryRestUrl =
+    list.items!.find((service) =>
+      service.name === api && service.version === version
+    )!.discoveryRestUrl;
+  if (!discoveryRestUrl) {
+    return new Response(`Not found: ${api} ${version}`, {
+      status: 404,
+    });
+  }
+  const service: RestDescription = await request(discoveryRestUrl, {
+    client: undefined,
+    method: "GET",
+  });
   const module = generate(service, req.url);
   const acceptsHtml = req.headers.get("accept")?.includes("text/html");
   if (acceptsHtml) {
