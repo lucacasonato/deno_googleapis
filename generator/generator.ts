@@ -454,9 +454,9 @@ export type { CredentialsClient };`;
         this.#w.block(() => {
           this.#w.write(`url.searchParams.append(`);
           this.#w.quote(name);
-          this.#w.write(`, encodeURIComponent(String(opts`);
+          this.#w.write(`, String(opts`);
           this.#writeIndex(name);
-          this.#w.write(`)));`);
+          this.#w.write(`));`);
         });
       }
       // create request body
