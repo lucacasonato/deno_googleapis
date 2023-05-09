@@ -15,6 +15,7 @@ export async function request(url: string, opts: RequestOpts) {
     headers: {
       "accept": "application/json",
       "content-type": "application/json",
+      "x-goog-api-client": `gl-deno/${Deno.version.deno}`,
       ...headers,
     },
     body: opts.body,
