@@ -42,7 +42,7 @@ export async function request(url: string, opts: RequestOpts) {
 }
 
 function denoVersion() {
-  let version = '0.0.0'
+  let version = '0.0.0';
   if (typeof Deno !== 'undefined' && Deno?.version?.deno) {
     version = Deno.version.deno;
   }
