@@ -3,12 +3,12 @@ import { request } from "../base/mod.ts";
 import { assert } from "../generator/deps.ts";
 import { RestDescription } from "../generator/discovery:v1.gen.ts";
 import { generate, primaryName } from "../generator/generator.ts";
-import { Discovery, router, serve } from "./deps.ts";
+import { ConnInfo, Discovery, router, serve } from "./deps.ts";
 
 const discovery = new Discovery();
 const list = await discovery.apisList({ preferred: true });
 
-const handler = router({
+const handler = router<ConnInfo>({
   "GET@/": home,
   "GET@/v1/{:api}\\:{:version}.ts": code,
   "GET@/v1/{:api}\\:{:version}": code,
@@ -17,6 +17,7 @@ const handler = router({
 
 async function staticFiles(
   req: Request,
+  _: ConnInfo,
   { path }: Record<string, string>,
 ): Promise<Response> {
   const url = new URL("../base/", import.meta.url);
@@ -108,6 +109,7 @@ ${
 
 async function code(
   req: Request,
+  _: ConnInfo,
   { api, version }: Record<string, string>,
 ): Promise<Response> {
   const discoveryRestUrl =
