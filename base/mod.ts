@@ -15,7 +15,7 @@ export async function request(url: string, opts: RequestOpts) {
     headers: {
       "accept": "application/json",
       "content-type": "application/json",
-      "x-goog-api-client": `gl-deno/${Deno.version.deno}`,
+      "x-goog-api-client": `gl-deno/${denoVersion()}`,
       ...headers,
     },
     body: opts.body,
@@ -39,6 +39,14 @@ export async function request(url: string, opts: RequestOpts) {
     }
   }
   return await resp.json();
+}
+
+function denoVersion() {
+  let version = '0.0.0'
+  if (typeof Deno !== 'undefined' && Deno?.version?.deno) {
+    version = Deno.version.deno;
+  }
+  return version;
 }
 
 export class GoogleApiError extends Error {
