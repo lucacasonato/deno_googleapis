@@ -255,7 +255,6 @@ export type { CredentialsClient };`;
       case "string": {
         let tsFormat = "string";
         let tsComment = "";
-        const s: ("a" | "b" | "c" | "d" | "e" | "f")[] = [];
         if ("format" in t) {
           switch (t.format) {
             case "byte":
