@@ -802,6 +802,5 @@ export type { CredentialsClient };`;
 }
 
 export function generate(schema: RestDescription, selfUrl: string): string {
-  // console.log('Schema: ', schema);
   return new Generator(schema, selfUrl).generate();
 }
