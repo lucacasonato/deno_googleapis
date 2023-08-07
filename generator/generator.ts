@@ -252,37 +252,42 @@ export type { CredentialsClient };`;
       case "integer":
         this.#w.write("number");
         return;
-      case "string":
+      case "string": {
+        let tsFormat = "string";
+        let tsComment = "";
         if ("format" in t) {
           switch (t.format) {
             case "byte":
-              this.#w.write("Uint8Array");
-              return;
+              tsFormat = "Uint8Array";
+              break;
             case "int64":
             case "uint64":
-              this.#w.write("bigint");
-              return;
+              tsFormat = "bigint";
+              break;
             case "date":
             case "date-time":
             case "google-datetime":
-              this.#w.write("Date");
-              return;
+              tsFormat = "Date";
+              break;
             case "google-duration":
-              this.#w.write("number /* Duration */");
-              return;
+              tsFormat = "number";
+              tsComment = " /* Duration */";
+              break;
             case "google-fieldmask": {
-              this.#w.write("string /* FieldMask */");
-              return;
+              tsFormat = "string";
+              tsComment = " /* FieldMask */";
+              break;
             }
           }
         } else if (t.enum !== undefined) {
-          for (const e of t.enum) {
-            this.#w.write(` | "${e}"`);
-          }
-        } else {
-          this.#w.write("string");
+          tsFormat = `(${t.enum.join(' | ')})`;
         }
+        if (t.repeated) {
+          tsFormat = `${tsFormat}[]`;
+        }
+        this.#w.write(`${tsFormat}${tsComment}`);
         return;
+      }
       case "object": {
         this.#w.inlineBlock(() => {
           if (t.properties) {
@@ -447,16 +452,28 @@ export type { CredentialsClient };`;
       }
       this.#w.writeLine(`const url = new URL(\`\${this.#baseUrl}${path}\`);`);
       // add options as query params
-      for (const [name] of method.queryParams) {
+      for (const [name, schema] of method.queryParams) {
+        const isArray = !!schema.repeated;
         this.#w.write(`if (opts`);
         this.#writeIndex(name);
         this.#w.write(` !== undefined)`);
         this.#w.block(() => {
-          this.#w.write(`url.searchParams.append(`);
-          this.#w.quote(name);
-          this.#w.write(`, String(opts`);
-          this.#writeIndex(name);
-          this.#w.write(`));`);
+          if (isArray) {
+            this.#w.write(`for (const ${name} of opts.${name})`);
+            this.#w.block(() => {
+              this.#w.write(`url.searchParams.append(`);
+              this.#w.quote(name);
+              this.#w.write(`, String(`);
+              this.#w.write(name);
+              this.#w.write(`));`);
+            });
+          } else {
+            this.#w.write(`url.searchParams.append(`);
+            this.#w.quote(name);
+            this.#w.write(`, String(opts`);
+            this.#writeIndex(name);
+            this.#w.write(`));`);
+          }
         });
       }
       // create request body
